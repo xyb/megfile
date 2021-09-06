@@ -1,0 +1,297 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>megfile.fs_path &mdash; megfile  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> megfile
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../megfile.html">megfile package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../cli.html">Command Line Interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html">README</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/megvii-research/megfile">GitHub</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">megfile</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>megfile.fs_path</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for megfile.fs_path</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">wraps</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">IO</span><span class="p">,</span> <span class="n">AnyStr</span><span class="p">,</span> <span class="n">BinaryIO</span>
+
+<span class="kn">from</span> <span class="nn">megfile</span> <span class="kn">import</span> <span class="n">fs</span>
+
+<span class="kn">from</span> <span class="nn">.interfaces</span> <span class="kn">import</span> <span class="n">PathLike</span><span class="p">,</span> <span class="n">URIPath</span>
+<span class="kn">from</span> <span class="nn">.lib.compat</span> <span class="kn">import</span> <span class="n">fspath</span>
+<span class="kn">from</span> <span class="nn">.lib.joinpath</span> <span class="kn">import</span> <span class="n">path_join</span>
+<span class="kn">from</span> <span class="nn">.smart_path</span> <span class="kn">import</span> <span class="n">SmartPath</span>
+
+
+<span class="k">def</span> <span class="nf">_bind_function</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+
+    <span class="nd">@wraps</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">fs</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span>
+    <span class="k">def</span> <span class="nf">fs_method</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">fs</span><span class="p">,</span> <span class="n">name</span><span class="p">)(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_without_protocol</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">fs_method</span>
+
+
+<div class="viewcode-block" id="FSPath"><a class="viewcode-back" href="../../megfile.fs_path.html#megfile.FSPath">[docs]</a><span class="nd">@SmartPath</span><span class="o">.</span><span class="n">register</span>
+<span class="k">class</span> <span class="nc">FSPath</span><span class="p">(</span><span class="n">URIPath</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;file protocol</span>
+<span class="sd">    e.g. file:///data/test/ or /data/test</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">protocol</span> <span class="o">=</span> <span class="s2">&quot;file&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__fspath__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">normpath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_without_protocol</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FSPath.from_uri"><a class="viewcode-back" href="../../megfile.fs_path.html#megfile.FSPath.from_uri">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_uri</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;FSPath&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">path_with_protocol</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">anchor</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">anchor</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span>
+
+    <span class="n">abspath</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_abspath&#39;</span><span class="p">)</span>
+    <span class="n">access</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_access&#39;</span><span class="p">)</span>
+    <span class="n">exists</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_exists&#39;</span><span class="p">)</span>
+    <span class="n">getmtime</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_getmtime&#39;</span><span class="p">)</span>
+    <span class="n">getsize</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_getsize&#39;</span><span class="p">)</span>
+    <span class="n">glob</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_glob&#39;</span><span class="p">)</span>
+    <span class="n">glob_stat</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_glob_stat&#39;</span><span class="p">)</span>
+    <span class="n">expanduser</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_expanduser&#39;</span><span class="p">)</span>
+    <span class="n">iglob</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_iglob&#39;</span><span class="p">)</span>
+    <span class="n">is_absolute</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_isabs&#39;</span><span class="p">)</span>
+    <span class="n">is_dir</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_isdir&#39;</span><span class="p">)</span>
+    <span class="n">is_file</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_isfile&#39;</span><span class="p">)</span>
+    <span class="n">is_symlink</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_islink&#39;</span><span class="p">)</span>
+    <span class="n">is_mount</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_ismount&#39;</span><span class="p">)</span>
+    <span class="n">listdir</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_listdir&#39;</span><span class="p">)</span>
+    <span class="n">load</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_load_from&#39;</span><span class="p">)</span>
+    <span class="n">mkdir</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_makedirs&#39;</span><span class="p">)</span>
+    <span class="n">realpath</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_realpath&#39;</span><span class="p">)</span>
+    <span class="n">relpath</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_relpath&#39;</span><span class="p">)</span>
+    <span class="n">remove</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_remove&#39;</span><span class="p">)</span>
+    <span class="n">rename</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_move&#39;</span><span class="p">)</span>
+    <span class="n">replace</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_move&#39;</span><span class="p">)</span>
+    <span class="n">rmdir</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_remove&#39;</span><span class="p">)</span>
+    <span class="n">scan</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_scan&#39;</span><span class="p">)</span>
+    <span class="n">scan_stat</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_scan_stat&#39;</span><span class="p">)</span>
+    <span class="n">scandir</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_scandir&#39;</span><span class="p">)</span>
+    <span class="n">stat</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_stat&#39;</span><span class="p">)</span>
+    <span class="n">unlink</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_unlink&#39;</span><span class="p">)</span>
+    <span class="n">walk</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_walk&#39;</span><span class="p">)</span>
+    <span class="n">resolve</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_resolve&#39;</span><span class="p">)</span>
+    <span class="n">md5</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_getmd5&#39;</span><span class="p">)</span>
+    <span class="n">copy</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_copy&#39;</span><span class="p">)</span>
+    <span class="n">sync</span> <span class="o">=</span> <span class="n">_bind_function</span><span class="p">(</span><span class="s1">&#39;fs_sync&#39;</span><span class="p">)</span>
+    <span class="n">cwd</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">fs_cwd</span>
+    <span class="n">home</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">fs_home</span>
+
+<div class="viewcode-block" id="FSPath.joinpath"><a class="viewcode-back" href="../../megfile.fs_path.html#megfile.FSPath.joinpath">[docs]</a>    <span class="k">def</span> <span class="nf">joinpath</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">other_paths</span><span class="p">:</span> <span class="n">PathLike</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;FSPath&quot;</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">fspath</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">path</span> <span class="o">==</span> <span class="s1">&#39;.&#39;</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">from_path</span><span class="p">(</span><span class="n">path_join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="o">*</span><span class="nb">map</span><span class="p">(</span><span class="n">fspath</span><span class="p">,</span> <span class="n">other_paths</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="FSPath.save"><a class="viewcode-back" href="../../megfile.fs_path.html#megfile.FSPath.save">[docs]</a>    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_object</span><span class="p">:</span> <span class="n">BinaryIO</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">fs</span><span class="o">.</span><span class="n">fs_save_as</span><span class="p">(</span><span class="n">file_object</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FSPath.open"><a class="viewcode-back" href="../../megfile.fs_path.html#megfile.FSPath.open">[docs]</a>    <span class="k">def</span> <span class="nf">open</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">IO</span><span class="p">[</span><span class="n">AnyStr</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="s1">&#39;w&#39;</span> <span class="ow">in</span> <span class="n">mode</span> <span class="ow">or</span> <span class="s1">&#39;x&#39;</span> <span class="ow">in</span> <span class="n">mode</span> <span class="ow">or</span> <span class="s1">&#39;a&#39;</span> <span class="ow">in</span> <span class="n">mode</span><span class="p">:</span>
+            <span class="n">fs</span><span class="o">.</span><span class="n">fs_makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">io</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2019, r-eng.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
