@@ -13,7 +13,7 @@ style_check:
 	yapf --diff --recursive ${PACKAGE} tests
 
 static_check:
-	pytype
+	pyre check
 
 mut:
 	@echo Mutation testing...
