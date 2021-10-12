@@ -82,7 +82,7 @@ def method_not_implemented(func):
     return wrapper
 
 
-class BasePath:
+class BasePath(_PathLike):
 
     def __init__(self, path: "PathLike"):
         self.path = str(path)
